@@ -1,0 +1,831 @@
+% \iffalse meta-comment
+% !TeX program  = XeLaTeX
+% !TeX encoding = UTF-8
+%
+%<*internal>
+\begingroup
+  \def\NameOfLaTeXe{LaTeX2e}
+\expandafter\endgroup\ifx\NameOfLaTeXe\fmtname\else
+\csname fi\endcsname
+%</internal>
+%
+%<*install>
+\input docstrip.tex
+\keepsilent
+\askforoverwritefalse
+
+\generate{
+  \nopreamble\nopostamble
+  \file{\jobname.py}    {\from{\jobname.ptx}{MPO}}
+  \file{\jobname.sh}    {\from{\jobname.ptx}{script}}
+  \file{\jobname-h.py}  {\from{\jobname.ptx}{fig-h}}
+  \file{\jobname-sx.py} {\from{\jobname.ptx}{fig-sx}}
+  \file{\jobname-sy.py} {\from{\jobname.ptx}{fig-sy}}
+  \file{\jobname-sz.py} {\from{\jobname.ptx}{fig-sz}}
+  \file{\jobname-fig-f.tex}  {\from{\jobname.ptx}{fig-f}}
+}
+
+\obeyspaces
+
+\endbatchfile
+%</install>
+%
+%<*internal>
+\fi
+%</internal>
+%
+%<*driver>
+\documentclass{cqp-doc}
+\usepackage{hologo}
+\usepackage{fancyvrb}
+\usepackage{tabularray}
+\UseTblrLibrary{amsmath}
+\newcommand{\Sx}{S^x}
+\newcommand{\Sy}{S^y}
+\newcommand{\Sz}{S^z}
+\newcommand{\So}{S^0}
+\begin{document}
+  \DocInput{\jobname.ptx}
+\end{document}
+%</driver>
+% \fi
+%
+% \title{4}
+% \maketitle
+%
+% \begin{problem}
+% Write down the MPO for the compass model on a square lattice
+% \begin{equation}\label{eq:total-ham}
+%   H= - J_x \sum_{\ev{i,j}_H} \sigma_i^x \sigma_j^x -
+%   J_y \sum_{\ev{i,j}_V} \sigma_i^y \sigma_j^y + h_z \sum_i \sigma_i^z
+% \end{equation}
+% with
+% \begin{subequations}
+%   \begin{align}
+%     \ev{i,j}_H &\in (0,3), (3,6), (1,4), (4,7), (2,5), (5,8)\\
+%     \ev{i,j}_V &\in (0,1), (1,2), (2,0), (3,4), (4,5), (5,3), (6,7), (7,8), (8,6)\\
+%     &j_x=0.3,\quad J_y = 1.4,\quad h_z= 0.5
+%   \end{align}
+% \end{subequations}
+% The Pauli matrices involved are
+% \begin{equation}\label{eq:pauli-mat}
+%   \sigma_i^x = \mqty(\pmat{1}), \sigma_i^x = \mqty(\pmat{2}), \sigma_i^z = \mqty(\pmat{3})
+% \end{equation}
+%
+% \tcbline
+% Show the finite automata figure.
+% \tcbline
+% \begin{enumerate}
+%   \item Write a code to generate these MPO.
+%   \item Contract MPO tensors to obtain the Hamiltonian
+%   \item Show the lowest 20 eigenvalues
+%   \item Compare Hamiltonian and eigenvalues with exact diagonalization
+% \end{enumerate}
+% \end{problem}
+%
+%
+% \begin{documentation}
+%
+% \section{General Ideas}
+%
+% \subsection{Structure of the Model}
+%
+% The compass model in question can be treated as a triangular prism which consists of 3 layers,
+% with interaction happening only between horizontally or vertically neighboring sites.
+% A \SI{90}{\degree} rotated schematic of such model is shown in \cref{fig:compass}.
+%
+% \tikzstyle{circ} = [circle, thick, draw, fill=white]
+% \def\scale{1.5}
+% \begin{figure}[!ht]
+% \centering
+% \begin{tikzpicture}
+%   \draw[dashed,thick] (-\scale,0) -- (0,0.5*\scale)
+%     edge (0,2.5*\scale) -- (\scale,0);
+%   \draw[thick] (-\scale,0) rectangle (\scale,2*\scale)
+%     -- (0,2.5*\scale) -- (-\scale,2*\scale);
+%   \draw[dashed, thick] (\scale,\scale) -- (0,1.5*\scale)
+%     -- (-\scale,\scale);
+%   \draw[thick] (\scale,\scale) -- (-\scale,\scale);
+%   \node[circ] at (\scale,0) {2};
+%   \node[circ] at (-\scale,0) {1};
+%   \node[circ] at (0,0.5*\scale) {0};
+%   \node[circ] at (\scale,\scale) {5};
+%   \node[circ] at (-\scale,\scale) {4};
+%   \node[circ] at (0,1.5*\scale) {3};
+%   \node[circ] at (\scale,2*\scale) {8};
+%   \node[circ] at (-\scale,2*\scale) {7};
+%   \node[circ] at (0,2.5*\scale) {6};
+% \end{tikzpicture}
+% \caption{Schematic of a rotated compass model}
+% \label{fig:compass}
+% \end{figure}
+%
+% \subsection{Finite Automata}
+%
+% In the first step, we separate each term in \cref{eq:total-ham} to obtain a
+% thorough view of the components of the full Hamiltonian, as will be shown in \cref{fig:h}
+% whose matrix representation consists of the sum of the Kronecker product of each line.
+% We deliberately leave out the constants in the following schematics.
+%
+% We do not harsh to present the the full Hamiltonian yet, since the number
+% amid the connecting lines will be determined in a later procedure.
+%
+% Next, we need to simply the expression by combining like terms, to form a
+% translational invariant matrix product state(MPS). For those containing $S^x$,
+% we notice that they have the mutual pattern of $S^x\to S^0\to S^0\to S^x$,
+% leading to \cref{fig:sx}, which has altogether 6 paths.
+% \footnote{we use $S^0$, $S^x$, $S^y$ and $S^z$ in this text to denote the Pauli matrices}
+%
+% \begin{figure}[!ht]
+%   \centering
+%   \includegraphics[width=.8\textwidth]{hw1031-fig-sx.pdf}
+%   \caption{Schematic of finite automata for $S^x$}
+%   \label{fig:sx}
+% \end{figure}
+%
+% For those containing $S^y$, the 3-site loop creates the patterns of
+% $S^y\to S^y\to S^0$, $S^y\to S^0\to S^y$ and $S^0\to S^y\to S^y$,
+% which can be generalized by adding a bridging line in the middle.
+% As a result, with the direction of left-to-right and up-to-down,
+% the diagonal lines can be shared to create 3 paths for each mini group.
+% The result is shown as \cref{fig:sy}.
+%
+% \begin{figure}[!ht]
+%   \centering
+%   \includegraphics[width=.8\textwidth]{hw1031-fig-sy.pdf}
+%   \caption{Schematic of finite automata for $S^y$}
+%   \label{fig:sy}
+% \end{figure}
+%
+% Similarly, we have \cref{fig:sz} for those containing $S^z$.
+%
+% \begin{figure}[!ht]
+%   \centering
+%   \includegraphics[width=.8\textwidth]{hw1031-fig-sz.pdf}
+%   \caption{Schematic of finite automata for $S^z$}
+%   \label{fig:sz}
+% \end{figure}
+%
+% With the MPS, we can then work out the flow chart of finite automata,
+% as shown in \cref{fig:f}. Aparting from the 2 nodes that represent
+% the starting and ending site, we need 3 nodes to connect the 4 $S^x$
+% operators, and another 1 node to connect the 2 $S^y$ operators.
+% Note that the bridging line in \cref{fig:sy} becomes a small loop of
+% $S^0$ on the node between $S^y$. Additionaly, $S^z$ directly connects
+% the starting and ending site. The resulting flow chart has 6 nodes in total.
+%
+% At this step, we can finally turn back to \cref{fig:h} and
+% determine the number connecting the blocks.
+%
+% \begin{figure}[p]
+%   \centering
+%   \includegraphics[width=.8\textwidth]{hw1031-fig-h.pdf}
+%   \caption{Schematic of full Hamiltonian}
+%   \label{fig:h}
+% \end{figure}
+%
+% To clarify, this flow chart is not necessarily accurate,
+% as the $S^0$ between $S^y$ can only be taken once,
+% instead of being infinitely available as those on the starting and ending site.
+%
+% \begin{figure}[!hb]
+%   \centering
+%   \includegraphics[width=.3\textwidth]{hw1031-fig-f.pdf}
+%   \caption{Flow chart of finite automata}
+%   \label{fig:f}
+% \end{figure}
+%
+% \subsection{Structure of the MPO}
+%
+% As we know, the number of nodes in \cref{fig:f} corresponds to the
+% dimension of matrix product operator (MPO). The number on the node
+% indicates how the operators (here we use the Pauli matrices) are
+% connected to each other, i.e., the position of each operator in the MPO.
+% For example, the $S^x$ connected to node 2 and node 3 should be
+% placed in row 2 and column 3.
+%
+% With the help of the numbers in \cref{fig:h}, we can write down the
+% MPO representation of the full Hamiltonian, by checking vertically on each
+% column of blocks and place the operators in the matrix.
+% \begin{equation}\label{eq:mpo}
+%   \begin{tblr}{colspec=ccccc,columns={colsep=0pt,font=\scriptsize}}
+%     \begin{+pmatrix}[rowsep=1pt, colsep=2pt, columns={wd=10pt}]
+%       1 & 0 & 0 & 0 & 0 & 0
+%     \end{+pmatrix}&
+%     \begin{+pmatrix}[rowsep=1pt, colsep=2pt, columns={wd=10pt}]
+%       \So & \Sx & 0 & 0 & \Sy & \Sz \\
+%       0 & 0 & 0 & 0 & 0 & 0 \\
+%       0 & 0 & 0 & 0 & 0 & 0 \\
+%       0 & 0 & 0 & 0 & 0 & 0 \\
+%       0 & 0 & 0 & 0 & 0 & 0 \\
+%       0 & 0 & 0 & 0 & 0 & 0 \\
+%     \end{+pmatrix}&
+%     \begin{+pmatrix}[rowsep=1pt, colsep=2pt, columns={wd=10pt}]
+%       \So & \Sx & 0 & 0 & \Sy & \Sz \\
+%       0 & 0 & \So & 0 & 0 & 0 \\
+%       0 & 0 & 0 & 0 & 0 & 0 \\
+%       0 & 0 & 0 & 0 & 0 & 0 \\
+%       0 & 0 & 0 & 0 & \So & \Sy \\
+%       0 & 0 & 0 & 0 & 0 & \So \\
+%     \end{+pmatrix}&
+%     \begin{+pmatrix}[rowsep=1pt, colsep=2pt, columns={wd=10pt}]
+%       \So & \Sx & 0 & 0 & 0 & \Sz \\
+%       0 & 0 & 0 & \So & 0 & 0 \\
+%       0 & 0 & 0 & 0 & \So & 0 \\
+%       0 & 0 & 0 & 0 & 0 & 0 \\
+%       0 & 0 & 0 & 0 & 0 & \Sy \\
+%       0 & 0 & 0 & 0 & 0 & \So \\
+%     \end{+pmatrix}\\&
+%     \begin{+pmatrix}[rowsep=1pt, colsep=2pt, columns={wd=10pt}]
+%       \So & \Sx & 0 & 0 & \Sy & \Sz \\
+%       0 & 0 & \So & 0 & 0 & 0 \\
+%       0 & 0 & 0 & \So & 0 & 0 \\
+%       0 & 0 & 0 & 0 & 0 & \Sx \\
+%       0 & 0 & 0 & 0 & 0 & 0 \\
+%       0 & 0 & 0 & 0 & 0 & \So \\
+%     \end{+pmatrix}&
+%     \begin{+pmatrix}[rowsep=1pt, colsep=2pt, columns={wd=10pt}]
+%       \So & \Sx & 0 & 0 & \Sy & \Sz \\
+%       0 & 0 & \So  & 0 & 0 & 0 \\
+%       0 & 0 & 0 & \So & 0 & 0 \\
+%       0 & 0 & 0 & 0 & 0 & \Sx \\
+%       0 & 0 & 0 & 0 & \So & \Sy \\
+%       0 & 0 & 0 & 0 & 0 & \So \\
+%     \end{+pmatrix}&
+%     \begin{+pmatrix}[rowsep=1pt, colsep=2pt, columns={wd=10pt}]
+%       \So & \Sx & 0 & 0 & 0 & \Sz \\
+%       0 & 0 & \So  & 0 & 0 & 0 \\
+%       0 & 0 & 0 & \So & 0 & 0 \\
+%       0 & 0 & 0 & 0 & 0 & \Sx \\
+%       0 & 0 & 0 & 0 & 0 & \Sy \\
+%       0 & 0 & 0 & 0 & 0 & \So \\
+%     \end{+pmatrix}\\&
+%     \begin{+pmatrix}[rowsep=1pt, colsep=2pt, columns={wd=10pt}]
+%       \So & 0 & 0 & 0 & \Sy & \Sz \\
+%       0 & 0 & \So & 0 & 0 & 0 \\
+%       0 & 0 & 0 & \So & 0 & 0 \\
+%       0 & 0 & 0 & 0 & 0 & \Sx \\
+%       0 & 0 & 0 & 0 & 0 & 0 \\
+%       0 & 0 & 0 & 0 & 0 & \So \\
+%     \end{+pmatrix}&
+%     \begin{+pmatrix}[rowsep=1pt, colsep=2pt, columns={wd=10pt}]
+%       \So & 0 & 0 & 0 & \Sy & \Sz \\
+%       0 & 0 & 0 & 0 & 0 & 0 \\
+%       0 & 0 & 0 & \So & 0 & 0 \\
+%       0 & 0 & 0 & 0 & 0 & \Sx \\
+%       0 & 0 & 0 & 0 & \So & \Sy \\
+%       0 & 0 & 0 & 0 & 0 & \So \\
+%     \end{+pmatrix}&
+%     \begin{+pmatrix}[rowsep=1pt, colsep=2pt, columns={wd=10pt}]
+%       0 & 0 & 0 & 0 & 0 & \Sz \\
+%       0 & 0 & 0 & 0 & 0 & 0 \\
+%       0 & 0 & 0 & 0 & 0 & 0 \\
+%       0 & 0 & 0 & 0 & 0 & \Sx \\
+%       0 & 0 & 0 & 0 & 0 & \Sy \\
+%       0 & 0 & 0 & 0 & 0 & \So \\
+%     \end{+pmatrix}&
+%     \begin{+pmatrix}[rowsep=1pt, colsep=2pt, columns={wd=10pt}]
+%       0 \\ 0 \\ 0 \\ 0 \\ 0 \\ 1
+%     \end{+pmatrix}
+%   \end{tblr}
+% \end{equation}
+%
+% \Cref{eq:mpo} can be consequently contracted to for the full Hamiltonian matrix.
+% Multiplication of two MPOs is similar to that of matrices, except that the
+% product of two numbers is replaced by Kronecker product, accordingly.
+% The Hamiltonian matrix constructed in this way can then be diagonalized to
+% obtain ground state energy, and be compared with normal procedure to
+% validate its correctness.
+%
+%
+% \section{Results}
+%
+% According to the comparison of Hamiltonians obtained from different approaches,
+% we find that the MPO solution and exact solution yield exactly the same matrix,
+% which means that they are equivalent, and will give the same eigenvalues.
+%
+% The lowest 20 eigenvalues are shown below.
+% \begin{longtblr}[
+%   caption = {Lowest 20 eigen-energies},
+%   label = {tab:eig-l20}
+% ]{colspec = {X[c]X[c]X[c]X[c]X[c]}}
+% \hline
+%   -13.12646931 & -13.07866474 & -13.07575853 & -13.06893675 & -13.03230613 \\
+%   -13.02946844 & -13.02304559 & -12.98800160 &  -8.68300191 &  -8.56677243 \\
+%    -8.56586155 &  -8.37964052 &  -8.37964052 &  -8.26479657 &  -8.23663151 \\
+%    -8.23248641 &  -8.22889930 &  -8.21755532 &  -8.21755532 &  -8.21213607 \\
+% \hline
+% \end{longtblr}
+%
+% \end{documentation}
+%
+%
+% \begin{implementation}
+% \section{Implementation}
+%
+% \subsection{Main Program}
+%
+% \subsubsection{Bootstraping}
+%
+% Libraries and constants.
+%    \begin{macrocode}
+%<*MPO>
+import numpy as np
+
+# Pauli matrices
+S0 = np.eye(2)
+Sx = S0[::-1]
+Sy = np.array([[0, -1j], [1j, 0]])
+Sz = np.diag([1, -1])
+
+# constants
+Jx, Jy, Hz = -.3, -1.4, .5
+N = 9
+
+# hop list
+Hop_h = [
+    (0, 3), (3, 6), (1, 4),
+    (4, 7), (2, 5), (5, 8)
+]
+Hop_v = [
+    (0, 1), (1, 2), (2, 0),
+    (3, 4), (4, 5), (5, 3),
+    (6, 7), (7, 8), (8, 6)
+]
+%    \end{macrocode}
+%
+% \subsubsection{MPO Solution}
+%
+% Function to generate MPOs from \cref{fig:h}.
+%    \begin{macrocode}
+def construct_mpo(d_mpo, d_p, n=N):
+    # Pauli matrices with coefficients
+    sx, sy, sz = np.sqrt(-Jx) * 1j * Sx, np.sqrt(-Jy) * 1j * Sy, Hz * Sz
+    mpo_list = np.zeros((n, d_mpo, d_p, d_mpo, d_p), dtype=complex)
+
+    for index in range(n):
+        for i, j in Hop_h:
+            if i == index:
+                mpo_list[index, 0, :, 1, :] = sx
+            elif j == index:
+                mpo_list[index, 3, :, 5, :] = sx
+            elif i+1 == index:
+                mpo_list[index, 1, :, 2, :] = S0
+            elif i+2 == index:
+                mpo_list[index, 2, :, 3, :] = S0
+
+        for i, j in Hop_v:
+            if j - i == 1:
+                if i == index:
+                    mpo_list[index, 0, :, 4, :] = sy
+                elif j == index:
+                    mpo_list[index, 4, :, 5, :] = sy
+            elif i - j == 2:
+                if i == index:
+                    mpo_list[index, 4, :, 5, :] = sy
+                elif j == index:
+                    mpo_list[index, 0, :, 4, :] = sy
+                elif j+1 == index:
+                    mpo_list[index, 4, :, 4, :] = S0
+
+        mpo_list[index, 0, :, 5, :] = sz
+
+        if index != 0:
+            mpo_list[index, -1, :, -1, :] = S0
+        if index != n-1:
+            mpo_list[index, 0, :, 0, :] = S0
+    return mpo_list
+%    \end{macrocode}
+%
+% An auxiliary funtion to get a view of how the MPOs look like.
+%    \begin{macrocode}
+# def construct_mpo_fig(n=N):
+#     d_mpo, d_p = 6, 2
+#     mpo_list = np.zeros((n, d_mpo, d_mpo), dtype=str)
+
+
+#     cx = 0
+#     c01 = 0
+#     for index in range(n):
+#         for i, j in Hop_h:
+#             if i == index:
+#                 mpo_list[index, 0, 1] = 'x'
+#                 cx+=1
+#             elif j == index:
+#                 mpo_list[index, 3, 5] = 'x'
+#                 cx+=1
+#             elif i+1 == index:
+#                 mpo_list[index, 1, 2] = '0'
+#                 c01+=1
+#             elif i+2 == index:
+#                 mpo_list[index, 2, 3] = '0'
+#                 c01+=1
+
+#     cy = 0
+#     c02=0
+#     for index in range(n):
+#         for i, j in Hop_v:
+#             if j - i == 1:
+#                 if i == index:
+#                     mpo_list[index, 0, 4] = 'y'
+#                     cy+=1
+#                 elif j == index:
+#                     mpo_list[index, 4, 5] = 'y'
+#                     cy+=1
+#             elif i - j == 2:
+#                 if i == index:
+#                     mpo_list[index, 4, 5] = 'y'
+#                     cy+=1
+#                 elif j == index:
+#                     mpo_list[index, 0, 4] = 'y'
+#                     cy+=1
+#                 elif j+1 == index:
+#                     mpo_list[index, 4, 4] = '0'
+#                     c02+=1
+
+#     for index in range(n):
+#         mpo_list[index, 0, 5] = 'z'
+
+#         if index != 0:
+#             mpo_list[index, 5, 5] = '0'
+#         if index != n-1:
+#             mpo_list[index, 0, 0] = '0'
+
+#     print(cx,cy,c01,c02)
+#     for x in mpo_list:
+#         print(x)
+%    \end{macrocode}
+%
+% We use Einstein sum to simply the process of multiplying two MPOs, which have the shape of
+% \verb|[d_mpo00, d_p0, d_mpo01, d_p0]| and \verb|[d_mpo10, d_p1, d_mpo11, d_p1]|, respectively.
+% The outer matrices are multiplied using normal matrix product procedure, while the inner
+% matrices are multiplied by Kronecker product. The Einstein sum would give a high-dimension result
+% of the shape \verb|[d_mpo0, d_p0, d_p1, d_mpo1, d_p0, d_p1]|, which is then reshaped
+% to the correct dimension.
+%    \begin{macrocode}
+def multiply_mpo(mpo0, mpo1):
+    assert mpo1.shape[0] == mpo0.shape[2]
+    d_mpo0, d_mpo1, d_p = mpo0.shape[0], mpo1.shape[2], mpo0.shape[1] * mpo1.shape[1]
+    return np.einsum("aibj, bkcl -> aikcjl", mpo0, mpo1).reshape(d_mpo0, d_p, d_mpo1, d_p)
+%    \end{macrocode}
+%
+% Finially, we can define the function to generate the MPOs and multiply them to form
+% the full Hamiltonian matrix.
+%    \begin{macrocode}
+def mpo_hamiltonian(d_mpo=6, d_p=2, n=N):
+    # head and tail matrices
+    l = np.zeros((1, 1, d_mpo, 1))
+    r = np.zeros((d_mpo, 1, 1, 1))
+    l[0, :, 0, :] = 1
+    r[-1, :, 0, :] = 1
+
+    mpo_list = construct_mpo(d_mpo, d_p)
+    temp = multiply_mpo(mpo_list[n-1], r)
+    for i in range(n-1):
+        temp = multiply_mpo(mpo_list[n-2-i], temp)
+    result = multiply_mpo(l, temp)[0, :, 0, :]
+    return result
+%    \end{macrocode}
+%
+% \subsubsection{Exact solution}
+%
+% We obtain the exact Hamiltonian by directly adding up the terms.
+%
+% As the terms share a common form, we generalize them in a single function.
+%    \begin{macrocode}
+def hop_element(hop_pair, sigma, identity=S0, n=N):
+    temp = np.eye(1)
+    for i in range(n):
+        if i in hop_pair:
+            temp = np.kron(temp, sigma)
+        else:
+            temp = np.kron(temp, identity)
+    return temp
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+def exact_hamiltonian(n=N, hop_h=Hop_h, hop_v=Hop_v, jx=Jx, jy=Jy, hz=Hz):
+    # Hamiltonian to solve with exact diagnalization
+    return jx * sum(hop_element(x, Sx) for x in hop_h) + \
+        jy * sum(hop_element(y, Sy) for y in hop_v) + \
+        hz * sum(hop_element([z], Sz) for z in range(n))
+%    \end{macrocode}
+%
+% \subsubsection{Main Function}
+% In the main function, we compare the result from two approaches.
+%    \begin{macrocode}
+if __name__ == "__main__":
+    h_mps = mpo_hamiltonian()
+    h_exact = exact_hamiltonian()
+    e_mps, _ = np.linalg.eigh(h_mps)
+    e_exact, _ = np.linalg.eigh(h_exact)
+
+    print(np.allclose(h_mps,h_exact))
+    print(e_mps[:20])
+    print(e_exact[:20])
+%</MPO>
+%    \end{macrocode}
+%
+% \subsection{Implementation of schematics}
+%    \begin{macrocode}
+%<*fig-h>
+N = 9
+Hop_h = [
+    (0, 3), (3, 6), (1, 4),
+    (4, 7), (2, 5), (5, 8)
+]
+Hop_v = [
+    (0, 1), (1, 2), (2, 0),
+    (3, 4), (4, 5), (5, 3),
+    (6, 7), (7, 8), (8, 6)
+]
+
+
+def print_head():
+    print(r"\documentclass{standalone}")
+    print(r"\usepackage{tikz,xkcdcolors,amsmath}")
+    print(r"\usetikzlibrary{patterns,arrows,decorations.pathreplacing}")
+    print(r"\tikzstyle{mpsR} = [rectangle, thick, draw, fill=xkcdRed, text=white,")
+    print(r"  minimum height=1.8em, minimum width=1.8em]")
+    print(r"\tikzstyle{mpsB} = [rectangle, thick, draw, fill=xkcdBlue, text=white,")
+    print(r"  minimum height=1.8em, minimum width=1.8em]")
+    print(r"\newcommand{\Sx}{$S^x$}")
+    print(r"\newcommand{\Sy}{$S^y$}")
+    print(r"\newcommand{\Sz}{$S^z$}")
+    print(r"\newcommand{\So}{$S^0$}")
+    print(r"\def\hsep{1.5}\def\vsep{1}")
+    print(r"\begin{document}")
+    print(r"\begin{tikzpicture}")
+
+
+def print_tail():
+    print(r"\end{tikzpicture}")
+    print(r"\end{document}")
+
+
+def print_conn(n=N):
+    for i in range(n + 1):
+        print("\draw [thick] (m{0}) -- (m{1});".format(i, i+1))
+
+
+def print_line(hop_pair, sigma, n=N):
+    print(r"\node[mpsR] (m0) at (0*\hsep,\shift) {L};")
+    for i in range(n):
+        if i in hop_pair:
+            label = sigma
+        else:
+            label = "o"
+        print(r"\node[mpsB] (m{0}) at ({0}*\hsep,\shift) {{\S{1}}};"
+            .format(i + 1, label))
+
+    print(r"\node[mpsR] (m{0}) at ({0}*\hsep,\shift) {{R}};".format(n+1))
+
+
+def print_num(hop_pair, count_sigma, alt_mode=False, n=N):
+    count = 0
+    flag = False
+    for i in range(n + 1):
+        flag1 = alt_mode
+        if i-1 in hop_pair:
+            flag = True
+            flag1 = not i in hop_pair
+
+        if flag and count+1 != len(count_sigma):
+            if flag1 and i in hop_pair:
+                flag1 = False
+            else:
+                count += 1
+
+        print(r"\node[fill=white] (d{0}) at ({0}.5*\hsep,\shift) {{{1}}};"
+            .format(i, count_sigma[count]))
+
+
+def print_shift(x):
+    print(r"\def\shift{{-{0}*\vsep}}".format(x))
+
+
+if __name__ == "__main__":
+    print_head()
+
+    count_x = (0, 1, 2, 3, 5)
+    for i, x in enumerate(Hop_h):
+    # for i, x in enumerate([(0, 3)]):
+        print_shift(i)
+        print_line(x, "x")
+        print_conn()
+        print_num(x, count_x)
+
+    count_y = (0, 4 ,5)
+    margin = 1 + len(Hop_h)
+    for i, y in enumerate(Hop_v):
+    # for i, x in enumerate([(0, 3)]):
+        print_shift(i + margin)
+        print_line(y, "y")
+        print_conn()
+        print_num(y, count_y, True)
+
+
+    count_z = (0, 5)
+    margin += 1 + len(Hop_v)
+    for i in range(N):
+        print_shift(i + margin)
+        print_line([i], "z")
+        print_conn()
+        print_num([i], count_z)
+
+    print_tail()
+%</fig-h>
+%    \end{macrocode}
+%
+% \subsubsection{Finite Automata}
+%
+% This section provides the scripts to generate the finite automata figure for
+% the Hamiltonian terms containing $S^x$, $S^y$ and $S^z$, respectively,
+% varying only in the number of layers and the way that sites are connected.
+% These scripts should print the Ti\textit{k}z code in the std output,
+% which can be redirected into a \texttt{.tex} file and run with \hologo{XeLaTeX}.
+%
+%    \begin{macrocode}
+%<*(fig-sx|fig-sy|fig-sz)>
+N = 9 + 1
+Gray_line = ", black!20"
+Gray_text = ", text=black!20"
+
+
+def print_head():
+    print(r"\documentclass{standalone}")
+    print(r"\usepackage{tikz,xkcdcolors,amsmath}")
+    print(r"\usetikzlibrary{patterns,arrows,decorations.pathreplacing}")
+    print(r"\tikzstyle{mpsR} = [circle, thick, draw, fill=xkcdRed, text=white, minimum size=.3]")
+    print(r"\tikzstyle{mpsB} = [circle, thick, draw, fill=xkcdBlue, text=white, minimum size=.3]")
+    print(r"\newcommand\Sx{$S^x$}")
+    print(r"\newcommand\Sy{$S^y$}")
+    print(r"\newcommand\Sz{$S^z$}")
+    print(r"\newcommand\So{$S^0$}")
+    print(r"\def\hsep{1.5}\def\vsep{1.5}")
+    print(r"\begin{document}")
+    print(r"\begin{tikzpicture}")
+
+
+def print_tail():
+    print(r"\end{tikzpicture}")
+    print(r"\end{document}")
+
+
+def print_conn(count, count_max, n=N):
+    flag = count == 0 or count == count_max-1
+    for i in range(1, n):
+        if i <= count or i > n+count-count_max:
+            color = Gray_line
+        else:
+            color = ""
+%<fig-sx|fig-sz>        if flag:
+%<fig-sy>        if flag or (not flag and i % 3 == 2):
+            print("\draw [thick{3}] (m{0}{1}) -- (m{0}{2});".format(count, i, i+1, color))
+
+
+def print_conn_diag(count, count_max, n=N):
+    for i in range(1, n):
+        if i <= count or i > n+1+count-count_max:
+            color = Gray_line
+        else:
+            color = ""
+%<fig-sx|fig-sz>        if True:
+%<fig-sy>        if (count - i) % 3 != 0:
+            print("\draw [thick{4}] (m{0}{1}) -- (m{3}{2});".format(count, i, i+1, count+1, color))
+
+
+def print_num(count, count_max, n=N):
+    flag = count == 0 or count == count_max-1
+    for i in range(1, n):
+        if i <= count or i > n+count-count_max:
+            color = Gray_text
+        else:
+            color = ""
+%<fig-sx|fig-sz>        if flag:
+%<fig-sy>        if flag or (not flag and (count - i + 1) % 3 == 0):
+            print(r"\node[fill=white{2}] (d{0}{1}) at ({1}.5*\hsep,\shift) {{\So}};".format(count, i, color))
+
+
+def print_num_diag(count, count_max, label, n=N):
+    for i in range(1, n):
+        if i <= count or i > n+count+1-count_max:
+            color = Gray_text
+        else:
+            color = ""
+%<fig-sx|fig-sz>        if True:
+%<fig-sy>        if (count - i) % 3 != 0:
+            print(r"\node[fill=white{3}] (d{0}{1}) at ({1}.5*\hsep,0.5*\vsep+\shift) {{\S{2}}};".format(count, i, label, color))
+
+
+def print_line(count, n=N):
+    for i in range(n):
+        print(r"\node[mpsB] (m{0}{1}) at ({1}*\hsep,\shift) {{}};".format(count, i + 1))
+
+
+def print_end(count, n=N):
+    print(r"\node[mpsR] (m{0}{1}) at ({1}*\hsep,\shift) {{}};".format(count-1, n+1))
+    print("\draw [thick] (m00) -- (m01);")
+    print("\draw [thick] (m{0}{1}) -- (m{0}{2});".format(count-1, n, n+1))
+
+def print_shift(x):
+    print(r"\def\shift{{-{0}*\vsep}}".format(x))
+
+
+if __name__ == "__main__":
+    print_head()
+    print_shift(0)
+    print(r"\node[mpsR] (m00) at (0*\hsep,\shift) {};")
+%<fig-sx>    count = 5
+%<fig-sy>    count = 3
+%<fig-sz>    count = 2
+    for i in range(count):
+        print_shift(i)
+        print_line(i)
+        print_conn(i, count)
+        print_num(i, count)
+        if i > 0:
+            print_conn_diag(i-1, count)
+%<fig-sx>            if i == 2 or i == 3:
+%<fig-sx>                print_num_diag(i-1, count, 'o')
+%<fig-sx>            else:
+%<fig-sx>                print_num_diag(i-1, count, 'x')
+%<fig-sy>            print_num_diag(i-1, count, 'y')
+%<fig-sz>            print_num_diag(i-1, count, 'z')
+    print_end(count)
+    print_tail()
+%</(fig-sx|fig-sy|fig-sz)>
+%    \end{macrocode}
+%
+% The flow chart for finite automata is directly saved as \texttt{.tex} file.
+%
+%    \begin{macrocode}
+%<*fig-f>
+\documentclass[tikz]{standalone}
+\usepackage{xkcdcolors,amsmath}
+\usetikzlibrary{patterns,arrows,decorations.pathreplacing}
+\tikzstyle{mpsB} = [circle, thick, draw, fill=xkcdBlue, text=white, minimum size=.3]
+\newcommand{\Sx}{$S^x$}
+\newcommand{\Sy}{$S^y$}
+\newcommand{\Sz}{$S^z$}
+\newcommand{\So}{$S^0$}
+\def\hsep{1}\def\vsep{1.5}
+\begin{document}
+\begin{tikzpicture}
+\node[mpsB] (m0) at (0,4*\vsep) {0};
+\node[mpsB] (m1) at (0,3*\vsep) {1};
+\node[mpsB] (m2) at (0,2*\vsep) {2};
+\node[mpsB] (m3) at (0,1*\vsep) {3};
+\node[mpsB] (m4) at (2*\hsep,2*\vsep) {4};
+\node[mpsB] (m5) at (0,0) {5};
+\node       (m6) at (-2.5*\hsep,2*\vsep) {\Sz};
+\node       (l) at (0,4.6*\vsep) {L};
+\node       (r) at (0,-0.6*\vsep) {R};
+\draw [thick,->] (m0) -- (m1);
+\draw [thick,->] (m1) -- (m2);
+\draw [thick,->] (m2) -- (m3);
+\draw [thick,->] (m3) -- (m5);
+\draw [thick,->] (l) -- (m0);
+\draw [thick,->] (m5) -- (r);
+\draw [thick,->] (m0) -- (m4) node[midway,fill=white] {\Sy};
+\draw [thick,->] (m4) -- (m5) node[midway,fill=white] {\Sy};
+\draw [thick,->] (m0) -| (m6) |- (m5);
+\draw[thick,->] (m0) to [out=30,in=-30,loop,looseness=8] (m0);
+\draw[thick,->] (m4) to [out=30,in=-30,loop,looseness=8] (m4);
+\draw[thick,->] (m5) to [out=30,in=-30,loop,looseness=8] (m5) ;
+\node[fill=white] at (0,3.5*\vsep) {\Sx};
+\node[fill=white] at (0,2.5*\vsep) {\So};
+\node[fill=white] at (0,1.5*\vsep) {\So};
+\node[fill=white] at (0,0.5*\vsep) {\Sx};
+\node at (1.2*\hsep,0) {\So};
+\node at (3.2*\hsep,2*\vsep) {\So};
+\node at (1.2*\hsep,4*\vsep) {\So};
+\end{tikzpicture}
+\end{document}
+%</fig-f>
+%    \end{macrocode}
+%
+% \subsubsection{Compilation Script}
+%
+% This section provides the script that automatically generates all the
+% schematics from source file and compiles the documentation.
+%
+%    \begin{macrocode}
+%<*script>
+xetex hw1031.ptx
+python hw1031-h.py  >> hw1031-fig-h.tex
+python hw1031-sx.py >> hw1031-fig-sx.tex
+python hw1031-sy.py >> hw1031-fig-sy.tex
+python hw1031-sz.py >> hw1031-fig-sz.tex
+xelatex hw1031-fig-h.tex
+xelatex hw1031-fig-sx.tex
+xelatex hw1031-fig-sy.tex
+xelatex hw1031-fig-sz.tex
+xelatex hw1031-fig-f.tex
+xelatex hw1031.ptx
+xelatex hw1031.ptx
+rm hw1031-fig-*.tex
+rm hw1031-*.py
+%</script>
+%    \end{macrocode}
+% \end{implementation}
